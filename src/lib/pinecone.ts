@@ -1,29 +1,23 @@
 import {
+  Pinecone,
+  PineconeRecord,
   PineconeClient,
-  Vector,
-  utils as PineconeUtils,
 } from "@pinecone-database/pinecone";
 import { downloadFromS3 } from "./s3-server";
 import { PDFLoader } from "langchain/document_loaders/fs/pdf";
+import md5 from "md5";
 import {
   Document,
   RecursiveCharacterTextSplitter,
 } from "@pinecone-database/doc-splitter";
 import { getEmbeddings } from "./embeddings";
-import md5 from "md5";
 import { convertToAscii } from "./utils";
 
-let pinecone: PineconeClient | null = null;
-
-export const getPineconeClient = async () => {
-  if (!pinecone) {
-    pinecone = new PineconeClient();
-    await pinecone.init({
-      environment: process.env.PINECONE_ENVIRONMENT!,
-      apiKey: process.env.PINECONE_API_KEY!,
-    });
-  }
-  return pinecone;
+export const getPineconeClient = () => {
+  return new Pinecone({
+    environment: process.env.PINECONE_ENVIRONMENT!,
+    apiKey: process.env.PINECONE_API_KEY!,
+  });
 };
 
 type PDFPage = {
@@ -38,8 +32,9 @@ export async function loadS3IntoPinecone(fileKey: string) {
   console.log("downloading s3 into file system");
   const file_name = await downloadFromS3(fileKey);
   if (!file_name) {
-    throw new Error("could not dowload from s3");
+    throw new Error("could not download from s3");
   }
+  console.log("loading pdf into memory" + file_name);
   const loader = new PDFLoader(file_name);
   const pages = (await loader.load()) as PDFPage[];
 
@@ -51,11 +46,11 @@ export async function loadS3IntoPinecone(fileKey: string) {
 
   // Upload to pinecone
   const client = await getPineconeClient();
-  const pineconeIndex = client.Index("chatpdf");
+  const pineconeIndex = await client.index("chatpdf");
+  const namespace = pineconeIndex.namespace(convertToAscii(fileKey));
 
   console.log("inserting vectors into pinecone");
-  const namespace = convertToAscii(fileKey);
-  PineconeUtils.chunkedUpsert(pineconeIndex, vectors, namespace, 10);
+  await namespace.upsert(vectors);
 
   return documents[0];
 }
@@ -72,7 +67,7 @@ async function embedDocument(doc: Document) {
         text: doc.metadata.text,
         pageNumber: doc.metadata.pageNumber,
       },
-    } as Vector;
+    } as PineconeRecord;
   } catch (error) {
     console.log("error embedding document", error);
     throw error;
@@ -87,7 +82,7 @@ export const truncateStringByBytes = (str: string, bytes: number) => {
 async function prepareDocument(page: PDFPage) {
   let { pageContent, metadata } = page;
   pageContent = pageContent.replace(/\n/g, "");
-  //   split docs
+  // split the docs
   const splitter = new RecursiveCharacterTextSplitter();
   const docs = await splitter.splitDocuments([
     new Document({

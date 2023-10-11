@@ -31,22 +31,19 @@ const FileUpload = () => {
     accept: { "application/pdf": [".pdf"] },
     maxFiles: 1,
     onDrop: async (acceptedFiles) => {
-      console.log(acceptedFiles);
       const file = acceptedFiles[0];
-
       if (file.size > 10 * 1024 * 1024) {
-        // bigger than 10mb
-        toast.error("File is too large");
-        alert("please upload a smaller file");
+        // bigger than 10mb!
+        toast.error("File too large");
         return;
       }
 
       try {
         setUploading(true);
         const data = await uploadToS3(file);
-        if (!data?.file_key || !data?.file_name) {
+        console.log("meow", data);
+        if (!data?.file_key || !data.file_name) {
           toast.error("Something went wrong");
-          alert("something went wrong");
           return;
         }
         mutate(data, {
@@ -56,7 +53,7 @@ const FileUpload = () => {
           },
           onError: (err) => {
             toast.error("Error creating chat");
-            console.log(err);
+            console.error(err);
           },
         });
       } catch (error) {
