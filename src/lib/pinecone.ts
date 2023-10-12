@@ -1,8 +1,4 @@
-import {
-  Pinecone,
-  PineconeRecord,
-  PineconeClient,
-} from "@pinecone-database/pinecone";
+import { Pinecone, PineconeRecord } from "@pinecone-database/pinecone";
 import { downloadFromS3 } from "./s3-server";
 import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import md5 from "md5";
@@ -45,12 +41,17 @@ export async function loadS3IntoPinecone(fileKey: string) {
   const vectors = await Promise.all(documents.flat().map(embedDocument));
 
   // Upload to pinecone
+  console.log(1);
   const client = await getPineconeClient();
+  console.log(2);
   const pineconeIndex = await client.index("chatpdf");
+  console.log(3);
   const namespace = pineconeIndex.namespace(convertToAscii(fileKey));
+  console.log(4);
 
   console.log("inserting vectors into pinecone");
   await namespace.upsert(vectors);
+  console.log(5);
 
   return documents[0];
 }
