@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { Input } from "./ui/input";
 import { useChat } from "ai/react";
 import { Button } from "./ui/button";
@@ -8,6 +8,7 @@ import MessageList from "./MessageList";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Message } from "ai";
+import CustomSwitch from "./ui/switch";
 
 type Props = { chatId: number };
 
@@ -21,6 +22,7 @@ const ChatComponent = ({ chatId }: Props) => {
       return response.data;
     },
   });
+  const [isSwitchChecked, setIsSwitchChecked] = useState(true);
 
   const { input, handleInputChange, handleSubmit, messages } = useChat({
     api: "/api/chat",
@@ -44,8 +46,19 @@ const ChatComponent = ({ chatId }: Props) => {
       id="message-container"
     >
       {/* header */}
-      <div className="sticky top-0 inset-x-0 p-2 bg-white h-fit">
-        <h3 className="text-xl font-bold">Chat</h3>
+
+      <div className="flex flex-row">
+        <div className="sticky top-0 inset-x-0 p-2 bg-white h-fit">
+          <h3 className="text-3xl font-bold">Chat</h3>
+        </div>
+
+        <div className="sticky px-8 h-fit">
+          <CustomSwitch
+            checked={isSwitchChecked}
+            onChange={async () => setIsSwitchChecked(!isSwitchChecked)}
+            label="GPT"
+          />
+        </div>
       </div>
 
       {/* message list */}
